@@ -297,11 +297,12 @@ function updateButtonStyles() {
 }
 
 
-// floating animation loop
 function animateFloatingPhotos() {
   const photosEls = document.querySelectorAll('.photo');
 
   photosEls.forEach(el => {
+    if (el.classList.contains('expanded')) return; // skip floating if enlarged
+
     let dx = parseFloat(el.dataset.dx);
     let dy = parseFloat(el.dataset.dy);
     let cx = parseFloat(el.dataset.cx);
@@ -327,6 +328,7 @@ function animateFloatingPhotos() {
   requestAnimationFrame(animateFloatingPhotos);
 }
 
+
 // buttons
 buttons.forEach(b => {
   b.addEventListener('click', () => {
@@ -347,6 +349,24 @@ buttons.forEach(btn => {
 
 // start floating animation
 animateFloatingPhotos();
+
+if (isTouchDevice) {
+  // photo click to enlarge / shrink
+  document.querySelectorAll('.photo').forEach(el => {
+    el.addEventListener('click', () => {
+      const isExpanded = el.classList.toggle('expanded'); // toggle expanded state
+
+      if (isExpanded) {
+        el.style.transform = 'scale(5)'; // enlarge
+        el.style.zIndex = 1000;          // keep on top
+      } else {
+        el.style.transform = 'scale(1)'; // shrink back
+        el.style.zIndex = 2;
+      }
+    });
+  });
+}
+
 
 
 
