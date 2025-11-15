@@ -49,17 +49,20 @@ body {
 .photo img {
   width: 100%;
   height: auto;
-  max-height: 70px;
-  max-width: 7vw;
   display: block;
   transition: transform 0.3s ease;
   transform-origin: center center;
   object-fit: contain;
 }
 
-.photo:hover img {
-  transform: scale(5); /* doubles the image size */
+/* Only apply hover on devices that can actually hover */
+@media (hover: hover) and (pointer: fine) {
+  .photo:hover img {
+    transform: scale(5);
+    z-index: 1000; /* keep on top when hovering */
+  }
 }
+
 
 
 .photo:hover {
@@ -95,3 +98,91 @@ button {
 button:hover {
   color: #a35d2a; /* warm brownish accent on hover */
 }
+
+#sliders {
+  position: fixed;
+  top: 60px; /* BELOW your top controls */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 20px;
+  font-family: Garamond, serif;
+  z-index: 1000;
+}
+
+#sliders label {
+  color: #333;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#sliders input[type="range"] {
+  width: 120px;
+}
+
+
+/* Base slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 200px;       /* adjust as needed */
+  height: 2px;        /* super slim track */
+  background: #000;   /* fully black track */
+  border-radius: 1px;
+  outline: none;
+  margin: 5px 8px 0 8px;
+}
+
+/* Chrome, Safari, Edge */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;        /* small thumb */
+  height: 10px;
+  background: #000;   /* fully black thumb */
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+/* Firefox */
+input[type="range"]::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  background: #000;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-track {
+  background: #000;
+  height: 2px;
+  border-radius: 0px;
+}
+
+/* IE */
+input[type="range"]::-ms-thumb {
+  width: 10px;
+  height: 10px;
+  background: #000;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+input[type="range"]::-ms-track {
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
+  height: 2px;
+}
+
+input[type="range"]::-ms-fill-lower,
+input[type="range"]::-ms-fill-upper {
+  background: #000;
+  border-radius: 1px;
+}
+
+

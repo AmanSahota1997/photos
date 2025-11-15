@@ -68,15 +68,38 @@ const photos = [
   { src: "photos/54661526475_feb35a2f34_b.jpg", geography: "London", color: "yellow", type: "city_edge", content: "building_far" },
 ];
 
+const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 const gallery = document.getElementById('gallery');
 const buttons = document.querySelectorAll('#controls button');
+const displayedPhotos = new Map(); // key = photo.src, value = DOM element
+
+let currentSort = "color";
+
+let imageSizeScale = 70;      // from slider 1
+let imageCountLimit = 90;     // from slider 2
+let clusterTightness = 20;    // from slider 3
+
+
+
+// --- SHUFFLE PHOTOS ONCE PER SESSION ---
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// shuffle photos once and store in a session array
+const sessionPhotos = shuffleArray(photos.slice());
+
 
 // helper: non-overlapping position generator
 function getNonOverlappingPosition(existing, cluster, size) {
   let x, y, tries = 0;
   const maxTries = 5000;
   const margin = 0.05; // keeps photos inside screen
-  const clusterSpread = 0.2;
+  const clusterSpread = clusterTightness / 100;
 
   do {
     const randX = cluster.x + (Math.random() - 0.5) * clusterSpread;
@@ -96,18 +119,26 @@ function getNonOverlappingPosition(existing, cluster, size) {
   return { x, y };
 }
 
-// repel overlapping photos after placement
 function repel(placed, iterations = 50) {
+  const repelStrength = 0.5; // whatever you prefer
+
   for (let k = 0; k < iterations; k++) {
     for (let i = 0; i < placed.length; i++) {
       for (let j = i + 1; j < placed.length; j++) {
         const dx = placed[j].x - placed[i].x;
         const dy = placed[j].y - placed[i].y;
         const dist = Math.hypot(dx, dy);
-        const minDist = (placed[i].size + placed[j].size) / 2;
+
+        const avgSize = (placed[i].size + placed[j].size) / 2;
+        const minDist = avgSize * 0.5; // same as before, but…
+
+        // normalize repel so larger images repel LESS
+        const sizeFactor = 50 / avgSize; // 50 = base desired size
+
         if (dist < minDist) {
-          const shift = (minDist - dist) / 2;
+          const shift = ((minDist - dist) / 2) * repelStrength * sizeFactor;
           const angle = Math.atan2(dy, dx);
+
           placed[i].x -= Math.cos(angle) * shift;
           placed[i].y -= Math.sin(angle) * shift;
           placed[j].x += Math.cos(angle) * shift;
@@ -118,25 +149,30 @@ function repel(placed, iterations = 50) {
   }
 }
 
+
 function displayPhotos(sortKey) {
-  // Group photos by selected tag
+    const pool = sessionPhotos; // use shuffled session order
+    const limitedPool = pool.slice(0, imageCountLimit);  // then limit
+
+
+  // 3) Group by sortKey
   const groups = {};
-  photos.forEach(p => {
-    const key = p[sortKey];
+  limitedPool.forEach(p => {
+    const key = p[sortKey] ?? 'undefined';
     if (!groups[key]) groups[key] = [];
     groups[key].push(p);
   });
 
   const groupKeys = Object.keys(groups);
+  if (!groupKeys.length) return;
 
-  // dynamic cluster positions
+  // 4) Cluster positions
   const clusterPositions = [];
   const n = groupKeys.length;
   const radius = 0.25;
   const randomness = 0.1;
-  const verticalOffset = -0.12;
+  const verticalOffset = -0.05;
   const horizontalOffset = -0.05;
-
   for (let i = 0; i < n; i++) {
     const angle = (i / n) * 2 * Math.PI;
     const x = 0.5 + radius * Math.cos(angle) + (Math.random() - 0.5) * randomness + horizontalOffset;
@@ -144,66 +180,76 @@ function displayPhotos(sortKey) {
     clusterPositions.push({ x, y });
   }
 
-  // Place each group of photos in its cluster
+  // 5) Place each group
   groupKeys.forEach((key, i) => {
     const cluster = clusterPositions[i % clusterPositions.length];
-    const sortedPhotos = groups[key].slice().sort(() => 0.5 - Math.random());
+    const groupPhotos = groups[key];
     const placed = [];
 
-    // calculate positions
-    sortedPhotos.forEach(photo => {
-      const size = 50 + Math.random() * 5;
+    groupPhotos.forEach(photo => {
+      const size = imageSizeScale + Math.random() * 10;
       const pos = getNonOverlappingPosition(placed, cluster, size);
       placed.push({ x: pos.x, y: pos.y, size });
     });
 
     repel(placed);
 
-    // create/update DOM elements with animation
-    sortedPhotos.forEach((photo, index) => {
+    groupPhotos.forEach((photo, index) => {
       const pos = placed[index];
-      let el = document.querySelector(`.photo[data-src='${photo.src}']`);
+      let el = displayedPhotos.get(photo.src);
 
       if (!el) {
+        // CREATE new photo
         el = document.createElement('div');
         el.className = 'photo';
         el.dataset.src = photo.src;
         el.dataset.meta = JSON.stringify(photo);
 
-
         const img = document.createElement('img');
         img.src = photo.src;
         el.appendChild(img);
 
-        // start at center
+        // initial position at center
         el.style.left = window.innerWidth / 2 + 'px';
         el.style.top = window.innerHeight / 2 + 'px';
         el.style.width = pos.size + 'px';
         el.style.opacity = 0;
 
-        // floating properties
+        // floating properties → control the wobble
         el.dataset.dx = (Math.random() - 0.5) * 0.5;
         el.dataset.dy = (Math.random() - 0.5) * 0.5;
-        el.dataset.cx = pos.x;
-        el.dataset.cy = pos.y;
-
+          
         gallery.appendChild(el);
-
+        displayedPhotos.set(photo.src, el);
+          
         requestAnimationFrame(() => {
           el.style.left = pos.x + 'px';
           el.style.top = pos.y + 'px';
+          el.style.width = pos.size + 'px';
           el.style.opacity = 1;
         });
       } else {
+        // UPDATE existing photo smoothly
         el.style.left = pos.x + 'px';
         el.style.top = pos.y + 'px';
         el.style.width = pos.size + 'px';
-        el.dataset.cx = pos.x;
-        el.dataset.cy = pos.y;
+        el.style.opacity = 1;
       }
+
+      el.dataset.cx = pos.x;
+      el.dataset.cy = pos.y;
     });
   });
+
+  // 6) Hide extra photos if imageCountLimit reduced
+  displayedPhotos.forEach((el, src) => {
+    if (!limitedPool.some(p => p.src === src)) {
+      el.style.opacity = 0;
+    }
+  });
 }
+
+
 
 // --- FILTERING ---
 // Apply a filter (show only photos matching a characteristic)
@@ -301,7 +347,8 @@ function animateFloatingPhotos() {
   const photosEls = document.querySelectorAll('.photo');
 
   photosEls.forEach(el => {
-    if (el.classList.contains('expanded')) return; // skip floating if enlarged
+    // Skip floating completely for expanded photos on mobile
+    if (isTouchDevice && el.classList.contains('expanded')) return;
 
     let dx = parseFloat(el.dataset.dx);
     let dy = parseFloat(el.dataset.dy);
@@ -329,16 +376,31 @@ function animateFloatingPhotos() {
 }
 
 
-// buttons
+
 buttons.forEach(b => {
   b.addEventListener('click', () => {
-    const mode = b.dataset.sort;
-    displayPhotos(mode);
-
+    currentSort = b.dataset.sort;
+    displayPhotos(currentSort);
+      
     buttons.forEach(btn => {
-      btn.style.fontWeight = btn.dataset.sort === mode ? 'bold' : 'normal';
+        btn.style.fontWeight = btn.dataset.sort === currentSort ? 'bold' : 'normal';
     });
   });
+});
+
+document.getElementById("sizeSlider").addEventListener("input", e => {
+  imageSizeScale = parseInt(e.target.value);
+  displayPhotos(currentSort);
+});
+
+document.getElementById("countSlider").addEventListener("input", e => {
+  imageCountLimit = parseInt(e.target.value);
+  displayPhotos(currentSort);
+});
+
+document.getElementById("clusterSlider").addEventListener("input", e => {
+  clusterTightness = parseInt(e.target.value);
+  displayPhotos(currentSort);
 });
 
 // initial load
@@ -350,22 +412,7 @@ buttons.forEach(btn => {
 // start floating animation
 animateFloatingPhotos();
 
-if (isTouchDevice) {
-  // photo click to enlarge / shrink
-  document.querySelectorAll('.photo').forEach(el => {
-    el.addEventListener('click', () => {
-      const isExpanded = el.classList.toggle('expanded'); // toggle expanded state
 
-      if (isExpanded) {
-        el.style.transform = 'scale(5)'; // enlarge
-        el.style.zIndex = 1000;          // keep on top
-      } else {
-        el.style.transform = 'scale(1)'; // shrink back
-        el.style.zIndex = 2;
-      }
-    });
-  });
-}
 
 
 
