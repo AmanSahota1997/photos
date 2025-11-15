@@ -187,7 +187,8 @@ function displayPhotos(sortKey) {
     const placed = [];
 
     groupPhotos.forEach(photo => {
-      const size = imageSizeScale + Math.random() * 10;
+      let size = imageSizeScale + Math.random() * 10;
+      if (isTouchDevice) size *= 0.7; // scale down 30% on touch devices
       const pos = getNonOverlappingPosition(placed, cluster, size);
       placed.push({ x: pos.x, y: pos.y, size });
     });
@@ -221,6 +222,41 @@ function displayPhotos(sortKey) {
           
         gallery.appendChild(el);
         displayedPhotos.set(photo.src, el);
+          
+        // --- MOBILE / CLICK TO EXPAND ---
+          if (isTouchDevice) {
+            el.addEventListener('click', () => {
+              // collapse any other expanded photos
+              document.querySelectorAll('.photo.expanded').forEach(other => {
+                if (other !== el) {
+                  other.classList.remove('expanded');
+                  other.style.width = other.dataset.cxSize + 'px';
+                  other.style.left = other.dataset.cx + 'px';
+                  other.style.top = other.dataset.cy + 'px';
+                }
+              });
+
+              const isExpanded = el.classList.contains('expanded');
+
+              if (isExpanded) {
+                el.classList.remove('expanded');
+                el.style.width = el.dataset.cxSize + 'px';
+                el.style.left = el.dataset.cx + 'px';
+                el.style.top = el.dataset.cy + 'px';
+              } else {
+                el.classList.add('expanded');
+                el.dataset.cxSize = parseFloat(el.style.width);
+
+                const maxWidth = window.innerWidth * 0.9;
+                const maxHeight = window.innerHeight * 0.9;
+
+                el.style.width = maxWidth + 'px';
+                el.style.left = (window.innerWidth - maxWidth) / 2 + 'px';
+                el.style.top = (window.innerHeight - maxHeight) / 2 + 'px';
+              }
+            });
+          }
+
           
         requestAnimationFrame(() => {
           el.style.left = pos.x + 'px';

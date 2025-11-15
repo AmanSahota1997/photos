@@ -185,4 +185,42 @@ input[type="range"]::-ms-fill-upper {
   border-radius: 1px;
 }
 
+@media (max-width: 480px) {
+  #sliders {
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-wrap: nowrap;          /* force all sliders on one line */
+    justify-content: space-between; /* spread sliders evenly */
+    gap: 1vw;                   /* small spacing between sliders */
+    max-width: 80vw;             /* container never wider than 80% of viewport */
+  }
 
+  #sliders input[type="range"] {
+    width: calc((80vw - 2vw) / 3); /* divide available width among 3 sliders minus gaps */
+    max-width: none;               /* remove previous max-width */
+  }
+
+  /* Webkit browsers (Chrome, Safari, Edge) */
+  #sliders input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    padding: 7px;                  /* easier to tap */
+    cursor: pointer;
+  }
+
+  /* Firefox */
+  #sliders input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+  }
+
+  /* IE / Edge Legacy */
+  #sliders input[type="range"]::-ms-thumb {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+  }
+}
